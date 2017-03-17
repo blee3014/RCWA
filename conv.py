@@ -4,6 +4,7 @@ from numpy.fft import fftn, fftshift
 import time
 from functools import wraps
 
+
 def fn_timer(function):
     @wraps(function)
     def function_timer(*args, **kwargs):
@@ -16,7 +17,7 @@ def fn_timer(function):
 
 # @fn_timer     # to time the function
 # @profile      # to see the memory usage
-def convmat2D(A, P, Q):
+def convmat2D(A, P, Q=1):
     """
     Returns a convolution matrix from a real space grid of permittivity and permeability to solve Maxwell's equation in
     Fourier space.
@@ -30,7 +31,10 @@ def convmat2D(A, P, Q):
     """
     # -----------------------------------------------------------------------------------------------------------------
     # Handle input and output arguments
-    Nx, Ny = A.shape
+    if Q == 1:
+        Nx = A.shape[0]
+    else:
+        Nx, Ny = A.shape
 
     # Compute indices of spatial harmonics
     NH = P*Q
@@ -50,12 +54,9 @@ def convmat2D(A, P, Q):
 
     for qrow in range(1,Q+1):
         for prow in range(1,P+1):
-            row = ((qrow-1)*P + prow) - 1
-
             # loop through the columns
             for qcol in range(1,Q+1):
                 for pcol in range(1,P+1):
-                    col = ((qcol-1)*P + pcol) - 1
                     pfft = p[prow-1] - p[pcol-1]
                     qfft = q[qrow-1] - q[qcol-1]
                     C.append(Af[p0 + pfft, q0+qfft])
@@ -63,6 +64,7 @@ def convmat2D(A, P, Q):
     return np.array(C).reshape((NH, NH))
 
 
+# example script
 if __name__ == '__main__':
 
     eps_ref = 1.0
