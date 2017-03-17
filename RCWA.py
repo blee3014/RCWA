@@ -1,105 +1,172 @@
-"""
-Step 0: Define the problem
-Step 1: Initialize Program
-Step 2: Build device on grid
-Step 3: Compute convolution matrices
-Step 4: Compute wave vector expansion
-Step 5: Compute eigen-modes of free space
-Step 6: Initialize global scattering matrix
-Step 7: Main loop through layers
-        1. Compute P and Q
-        2. Compute eigen-modes
-        3. Compute layer scattering matrix
-        4. Update global scattering matrix
-
-Step 8: Compute reflection side
-Step 9: Compute transmission side scattering matrix
-Step 10: Update global scattering matrix
-Step 11: Compute reflected and transmitted fields
-Step 12: Compute diffraction efficiencies
-Step 13: Verify conservation of energy
-"""
-
-import scipy.constants as cst
 import numpy as np
 import matplotlib.pyplot as plt
-from fft_coefficients import convmat2D
-
-# Step 0: Define the Problem. Refer to https://www.youtube.com/watch?v=n4Jy4TWHBZM
-# for the simulation problem.
-
-# Material properties
-# Reflection region
-u_ref = 1.0
-eps_ref = 2.0
-
-# device region
-u_r = 1.0
-eps_r = 6.0
-
-# transmission region
-u_trn = 1.0
-eps_trn = 9.0
-
-# Unit cell size
-K_x = 1.75 # cm
-K_y = 1.50 # cm
-
-# layer thickness
-d1 = 0.5 # cm
-d2 = 0.3 # cm
-
-# triangle size in layer 1
-w = 0.8*K_y
-
-# wavelength
-lambda_0 = 2.0 # cm
-
-# define units
-um = 1e-6
-cm = 1e-2
-nm = 1e-9
-
-# define constants
-c0 = cst.speed_of_light
-u0 = cst.mu_0
-eps0 = cst.epsilon_0
-eta0 = np.sqrt(u0/eps0)
-
-# Step 2: Build device on grid
-num_x = 512
-num_y = num_x
-
-w = 0.9*K_x
-dx = K_x / num_x
-dy = K_y / num_y
-xa = np.arange(0, num_x) * dx
-ya = np.arange(0, num_y) * dy
-xa = xa - np.average(xa)
-ya = ya - np.average(ya)
-X, Y = np.meshgrid(xa, ya)
-
-# Grid indices of the triangle
-h = w * np.sqrt(3.0) / 2
-ny = int(np.round(h / dy))
-ny1 = int(np.floor((num_y - ny) / 2.0))
-ny2 = ny1 + ny - 1
-
-ER_T = np.ones((num_x, num_y))*eps_ref
-for ny in range(ny1, ny2 + 1):
-    f = 1 - float((ny - ny1 + 1)) / (ny2 - ny1 + 1)
-    nx = int(np.round(f * w / dx))
-    nx1 = int(np.floor((num_x - nx) / 2.0))
-    nx2 = nx1 + nx - 1
-    ER_T[nx1:nx2, ny - 1] = eps_r
-
-plt.subplot(1,1,1)
-plt.pcolormesh(X, Y, ER_T.T, cmap='RdBu_r')
-plt.axis('equal')
-plt.colorbar()
-plt.show()
-# Step 3: Compute Convolution Matrices
+from conv import convmat2D
+from scipy.sparse import dia_matrix
 
 
+# Todo: functions for computing stuff
+def redheffer_std(Layer1, Layer2):
+    pass
 
 
+def redheffer_rev(Layer1, Layer2):
+    pass
+
+
+def get_ref_field():
+    pass
+
+
+def get_trn_field():
+    pass
+
+
+def get_long_comp():
+    pass
+
+
+def get_R():
+    pass
+
+
+def get_T():
+    pass
+
+
+class Initial(object):
+    """
+    Class with Initial values of the simulation.
+    (u_ref, eps_ref) = u and eps of Region I (reflection region)
+    (u_trn, eps_trn) = u and eps of Region II (transmission region)
+    (theta_inc, psi_inc) = incident angles. theta is angle between k vector and z axis
+                                            psi is polar angle in the xy plane of the incident beam
+    wavelength = wavelength of the incident beam
+    units = wavelength units, e.g. um = 1e-6
+    polarization = polarization vector in terms of (TE, TM). E.g., TE polarization is (1, 0)
+                   and half TE half TM is (0.5, 0.5). TE + TM = 1
+    """
+    def __init__(self,
+                 (u_ref, eps_ref),
+                 (u_trn, eps_trn),
+                 (theta_inc, psi_inc),
+                 wavelength,
+                 units=1e-6,
+                 polarization=[0,1]
+                 ):
+        self._u_ref, self._eps_ref = (u_ref, eps_ref)
+        self._u_trn, self._eps_trn = (u_trn, eps_trn)
+        self._theta_inc, self._psi_inc = np.deg2rad([theta_inc, psi_inc])
+        self._units = units
+        self._lamb0 = wavelength*self._units
+        self._k0 = 2*np.pi/self._lamb0
+        self._p_TE = polarization[0]
+        self._p_TM = polarization[1]
+
+        if self._p_TE + self._p_TM != 1.0:
+            raise ValueError("Polarization ratio must add up to 1 (TE + TM = 1).")
+
+    def get_u_ref(self):
+        return self._u_ref
+
+    def get_eps_ref(self):
+        return self._eps_ref
+
+    def get_u_trn(self):
+        return self._u_trn
+
+    def get_eps_trn(self):
+        return self._eps_trn
+
+    def get_theta_inc(self):
+        return self._theta_inc
+
+    def get_psi_inc(self):
+        return self._psi_inc
+
+    def get_wavelength(self):
+        return self._lamb0
+
+    def get_units(self):
+        return self._units
+
+    def set_u_ref(self, u_ref):
+        self._u_ref = u_ref
+
+    def set_eps_ref(self, eps_ref):
+        self._eps_ref = eps_ref
+
+    def set_u_trn(self, u_trn):
+        self._u_trn = u_trn
+
+    def set_eps_trn(self, eps_trn):
+        self._eps_trn = eps_trn
+
+    def set_theta_inc(self, theta_inc):
+        self._theta_inc = theta_inc
+
+    def set_psi_inc(self, psi_inc):
+        self._psi_inc = psi_inc
+
+    def set_wavelength(self, wavelength, update_k0=True):
+        self._lamb0 = wavelength*self._units
+        if update_k0:
+            self._k0 = 2*np.pi/self._lamb0
+
+    def set_units(self, units):
+        self._units = units
+
+    def _get_te_unit(self):
+        """
+        Returns TE unit vector from theta_inc and psi_inc
+        :return: TE unit vector [TE_x, TE_y, TE_z]
+        """
+        if self._theta_inc != 0:
+            TE = np.array([-np.sin(self._psi_inc),
+                           np.cos(self._psi_inc),
+                           0.0])
+        else:
+            TE = np.array([0.0, 1.0, 0.0])
+
+        return TE
+
+    def _get_tm_unit(self):
+        """
+        Returns TM unit vector from theta_inc and psi_inc
+        :return: TM unit vector [TM_x, TM_y, TM_z]
+        """
+        if self._theta_inc != 0:
+            TM = np.array([np.cos(self._psi_inc) * np.cos(self._theta_inc),
+                           -np.sin(self._psi_inc) * np.cos(self._theta_inc),
+                           -np.sin(self._theta_inc)])
+        else:
+            TM = np.array([1.0, 0.0, 0.0])
+
+        return TM
+
+    def get_polar_vector(self):
+        te_unit = self._get_te_unit()
+        tm_unit = self._get_tm_unit()
+        pol_init = self._p_TE * te_unit + self._p_TM * tm_unit
+        pol_mag = np.sqrt((pol_init**2).sum())
+        return pol_init/pol_mag
+
+    def get_source_field(self, M, N):
+        pol = self.get_polar_vector()
+        delta = np.array([np.hstack((np.zeros(M*N/2), np.array([1]), np.zeros(M*N/2)))]).T
+        return np.vstack((pol[0]*delta, pol[1]*delta))
+
+
+# Todo: class for Layer
+class Layer(object):
+    def __init__(self):
+        pass
+
+
+# Todo: class for reflection region
+class RegionI(Layer):
+    pass
+
+
+# Todo: class for Transmission region
+class RegionII(Layer):
+    pass
