@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from numpy.fft import fftn, fftshift
 import time
 from functools import wraps
@@ -38,8 +38,8 @@ def convmat2D(A, P, Q=1):
 
     # Compute indices of spatial harmonics
     NH = P*Q
-    p = np.array( range( -np.int(np.floor(P/2.0)), np.int(np.floor(P+1/2.0)) + 1 ) )
-    q = np.array( range( -np.int(np.floor(Q/2.0)), np.int(np.floor(Q+1/2.0)) + 1 ) )
+    p = np.array(range(-np.int(np.floor(P/2.0)), np.int(np.floor(P/2.0) + 1)))
+    q = np.array(range(-np.int(np.floor(Q/2.0)), np.int(np.floor(Q/2.0) + 1)))
 
     # Compute Fourier coefficients of A
     Af = fftshift(fftn(A)) / (Nx*Ny)
@@ -49,17 +49,19 @@ def convmat2D(A, P, Q=1):
     q0 = int(np.floor(Ny/2.0))
 
     C = []
+
     # Fill in the convolution matrix
     # loop through the rows
-
-    for qrow in range(1,Q+1):
-        for prow in range(1,P+1):
+    for qrow in range(Q+1):
+        for prow in range(P+1):
+            row = qrow*P + prow -1
             # loop through the columns
-            for qcol in range(1,Q+1):
-                for pcol in range(1,P+1):
-                    pfft = p[prow-1] - p[pcol-1]
-                    qfft = q[qrow-1] - q[qcol-1]
-                    C.append(Af[p0 + pfft, q0+qfft])
+            for qcol in range(Q+1):
+                for pcol in range(P+1):
+                    col = qcol*P + pcol - 1
+                    pfft = p[prow] - p[pcol]
+                    qfft = q[qrow] - q[qcol]
+                    C.append(Af[p0 + pfft - 1, q0+qfft - 1])
 
     return np.array(C).reshape((NH, NH))
 
@@ -124,33 +126,33 @@ if __name__ == '__main__':
     y = x
     X_c, Y_c = np.meshgrid(x, y)
 
-    plt.subplot(2,3,1)
-    plt.pcolormesh(X, Y, ER.T, cmap='RdBu_r')
-    plt.axis('equal')
-    plt.colorbar()
-
-    plt.subplot(2,3,2)
-    plt.pcolormesh(X, Y, ER_0.T, cmap='RdBu_r')
-    plt.axis('equal')
-    plt.colorbar()
-
-    plt.subplot(2,3,3)
-    plt.pcolormesh(X, Y, ER_T.T, cmap='RdBu_r')
-    plt.axis('equal')
-    plt.colorbar()
-
-    plt.subplot(2,3,4)
-    plt.imshow(np.real(ER_C.T),interpolation='none')
-    plt.axis('equal')
-    plt.colorbar()
-
-    plt.subplot(2,3,5)
-    plt.imshow(np.real(ER_0_C.T),interpolation='none')
-    plt.axis('equal')
-    plt.colorbar()
-
-    plt.subplot(2,3,6)
-    plt.imshow(np.real(ER_T_C.T),interpolation='none')
-    plt.axis('equal')
-    plt.colorbar()
-    plt.show()
+    # plt.subplot(2,3,1)
+    # plt.pcolormesh(X, Y, ER.T, cmap='RdBu_r')
+    # plt.axis('equal')
+    # plt.colorbar()
+    #
+    # plt.subplot(2,3,2)
+    # plt.pcolormesh(X, Y, ER_0.T, cmap='RdBu_r')
+    # plt.axis('equal')
+    # plt.colorbar()
+    #
+    # plt.subplot(2,3,3)
+    # plt.pcolormesh(X, Y, ER_T.T, cmap='RdBu_r')
+    # plt.axis('equal')
+    # plt.colorbar()
+    #
+    # plt.subplot(2,3,4)
+    # plt.imshow(np.real(ER_C.T),interpolation='none')
+    # plt.axis('equal')
+    # plt.colorbar()
+    #
+    # plt.subplot(2,3,5)
+    # plt.imshow(np.real(ER_0_C.T),interpolation='none')
+    # plt.axis('equal')
+    # plt.colorbar()
+    #
+    # plt.subplot(2,3,6)
+    # plt.imshow(np.real(ER_T_C.T),interpolation='none')
+    # plt.axis('equal')
+    # plt.colorbar()
+    # plt.show()
