@@ -157,7 +157,7 @@ class Initial(object):
 
     def get_source_field(self, M, N):
         """
-        :return: 2MN column vectore that excites the eigenmodes
+        :return: 2MN column vector that excites the Eigen-modes
         in the layers in RCWA simulation based on the given polarization
         """
         pol = self.get_polar_vector()
@@ -296,14 +296,13 @@ class Layer(object):
         del Ai0, Bi0, Xi, D, k0
         S21 = S12
         S22 = S11
-        return S11, S12, S21, S22
+        return S11, S12, S21,
 
     # Todo: calculate longitudinal K vectors
     def cal_KZ(self, KX, KY):
         pass
 
 
-# Todo: class for homogeneous layer
 class HomoLayer(Layer):
     """
     Class HomoLayer has homogeneous layer information for RCWA simulation.
@@ -318,29 +317,63 @@ class HomoLayer(Layer):
     Uses the same __init__ method except u and eps are scalars rather than
     convolution matrices.
     """
+    def __init__(self, M, N, Lx, Ly, d, u_r, eps_r, KX, KY, units=1e-6):
+        super().__init__(M, N, Lx, Ly, d, u_r, eps_r, units)
+        self._I = dia_matrix((np.ones(M*N), [0]), shape=(M*N, M*N))
+        self._Kz = self._get_Kz(KX, KY)
+        self._0 = dia_matrix((np.zeros(M*N), [0]), shape=(M*N, M*N))
+        self._KX = KX
+        self._KY = KY
+
+    def _get_Kz(self, KX, KY):
+        return np.conj(sc.sqrt(self._I.toarray() - KX**2 - KY**2))
+
     def _cal_P(self, KX, KY):
         pass
 
-    def _cal_Q(self, KX, KY):
-        pass
+    def _cal_Q(self):
+        KX = self._KX
+        KY = self._KY
+        u = self.get_u()
+        eps = self.get_eps()
+        Q11 = KX @ KY
+        Q12 = u*eps*self._I - KX**2
+        Q21 = KY**2 - u*eps*self._I
+        Q22 = -KX @ KY
+        del KX, KY, eps
+        return np.bmat([[Q11.toarray(), Q12.toarray()],
+                        [Q21.toarray(), Q22.toarray()]])/u
 
     def _cal_LAM(self):
-        pass
+        return np.bmat([[1j*self._Kz, self._0.toarray()],
+                        [self._0.toarray(), 1j*self._Kz]])
 
     def cal_W(self):
-        pass
+        return np.bmat([[self._I.toarray(), self._0.toarray()],
+                        [self._0.toarray(), self._I.toarray()]])
 
     def cal_V(self):
-        pass
+        LAM = self._cal_LAM()
+        Q = self._cal_Q()
+        return Q @ inv(LAM)
 
 
 class RegionLayer(HomoLayer):
+    def __init__(self, M, N, Lx, Ly, d, u_r, eps_r, KX, KY, KZ, units=1e-6):
+        super().__init__(M, N, Lx, Ly, d, u_r, eps_r, KX, KY, units)
+        self._Kz = KZ.toarray()
+
     def cal_S(self, W0, V0):
-        A = []
-        B = []
-        S11 = []
-        S12 = []
-        S21 = []
-        S22 = []
+        Wref = self.cal_W()
+        Vref = self.cal_V()
+        A = inv(W0) @ Wref + inv(V0) @ Vref
+        B = inv(W0) @ Wref - inv(V0) @ Vref
+        del Wref, Vref
+        inverse = inv(A)
+        S11 = -inverse @ B
+        S12 = 2*inverse
+        S21 = 0.5*(A - B @ inverse @ B)
+        S22 = B @ inverse
+        del inverse
         return S11, S12, S21, S22
 
