@@ -31,10 +31,7 @@ def convmat2D(A, P, Q=1):
     """
     # -----------------------------------------------------------------------------------------------------------------
     # Handle input and output arguments
-    if Q == 1:
-        Nx = int(A.shape[0])
-    else:
-        Nx, Ny = A.shape
+    Nx, Ny = A.shape
 
     # Compute indices of spatial harmonics
     NH = P*Q
@@ -43,23 +40,27 @@ def convmat2D(A, P, Q=1):
 
     # Compute Fourier coefficients of A
     Af = fftshift(fftn(A)) / (Nx*Ny)
+    # Af[np.abs(np.imag(Af)) < np.finfo(np.float).eps] = np.real(Af[abs(np.imag(Af)) < np.finfo(np.float).eps]) + 0 * 1j
+    # Af[np.abs(np.real(Af)) < np.finfo(np.float).eps] = np.imag(Af[abs(np.real(Af)) < np.finfo(np.float).eps]) + 0
 
     # Coordinate of the zero-order harmonic
     p0 = int(Nx/2)
     q0 = int(Ny/2)
 
-    C = []
+    C = np.zeros((NH,NH), dtype=complex)
 
     # Fill in the convolution matrix
     # loop through the rows
     for qrow in range(1, Q+1):
         for prow in range(1, P+1):
+            row = (qrow-1)*P + prow
             # loop through the columns
             for qcol in range(1, Q+1):
                 for pcol in range(1, P+1):
+                    col = (qcol-1)*P + pcol
                     pfft = p[prow-1] - p[pcol-1]
                     qfft = q[qrow-1] - q[qcol-1]
-                    C.append(Af[p0 + pfft, q0+qfft])
+                    C[row-1, col-1] = Af[p0+pfft, q0+qfft]
 
     return np.array(C).reshape((NH, NH))
 
